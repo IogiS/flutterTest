@@ -1,6 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_test/pages/addTask.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
-void main() {
+import 'models/plantodo.dart';
+
+void main() async {
+  await Hive.initFlutter();
+
+  var box = await Hive.openBox('testBox');
+
+  for (int i = 0; i < box.length; i++) {
+    print('Name: ${box.getAt(i)}');
+  }
+
   runApp(MyApp());
 }
 
@@ -20,7 +33,7 @@ class MyApp extends StatelessWidget {
         // or simply save your changes to "hot reload" in a Flutter IDE).
         // Notice that the counter didn't reset back to zero; the application
         // is not restarted.
-        primarySwatch: Colors.blue,
+        primarySwatch: Colors.purple,
         // This makes the visual density adapt to the platform that you run
         // the app on. For desktop platforms, the controls will be smaller and
         // closer together (more dense) than on mobile platforms.
@@ -50,17 +63,16 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+  int _counter = 1;
+  var _names = Hive.box('testBox').getAt(0);
 
+  get note => null;
+
+  get task => null;
   void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+    Box<PlanTodo> contactsBox = Hive.box<PlanTodo>('testBox');
+    contactsBox.add(PlanTodo(task: task, note: note));
+    Navigator.of(context).pop();
   }
 
   @override
@@ -77,41 +89,44 @@ class _MyHomePageState extends State<MyHomePage> {
         // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
-          ],
-        ),
+      body: ValueListenableBuilder(
+        valueListenable: Hive.box<PlanTodo>('testBox').listenable(),
+        builder: (context, Box<PlanTodo> box, _) {
+          if (box.values.isEmpty)
+            return Center(
+              child: Text("Todo list is empty"),
+            );
+          return ListView.builder(
+            itemCount: box.values.length,
+            itemBuilder: (context, index) {
+              PlanTodo res = box.getAt(index);
+              return Dismissible(
+                background: Container(color: Colors.red),
+                key: UniqueKey(),
+                onDismissed: (direction) {
+                  res.delete();
+                },
+                child: ListTile(
+                    title: Text(res.task == null ? '' : res.task),
+                    subtitle: Text(res.note == null ? '' : res.note),
+                    leading: res.complete
+                        ? Icon(Icons.check_box)
+                        : Icon(Icons.check_box_outline_blank),
+                    onTap: () {
+                      res.complete = !res.complete;
+                      res.save();
+                    }),
+              );
+            },
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
+        onPressed: () => Navigator.of(context)
+            .push(MaterialPageRoute(builder: (context) => AddTodo())),
+        tooltip: 'Add todo',
         child: Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+      ),
     );
   }
 }
